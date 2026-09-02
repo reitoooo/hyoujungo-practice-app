@@ -165,7 +165,7 @@ button:active {
 
 /* Mobile Sticky Bottom Bar */
 .sticky-recorder-container {
-  /* Default Desktop layout - normal */
+  position: relative;
 }
 
 @media (max-width: 768px) {
