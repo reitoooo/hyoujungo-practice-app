@@ -16,6 +16,14 @@ const CATEGORY_OPTIONS: { value: 'casual' | 'business' | 'presentation'; label: 
   { value: 'presentation', label: 'プレゼンテーション・スピーチ' },
 ];
 
+const TONE_OPTIONS = [
+  { value: 'standard', label: '標準的なトーン' },
+  { value: 'polite', label: '丁寧語・敬語' },
+  { value: 'apology', label: '謝罪・クレーム対応（感情を込める）' },
+  { value: 'persuasive', label: '説得・提案（抑揚をつける）' },
+  { value: 'friendly', label: '親しい友人へのタメ口（くだけた表現）' },
+];
+
 export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
   currentScenario,
   onSelectScenario,
@@ -24,6 +32,7 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
 }) => {
   const [scriptCategory, setScriptCategory] = useState<'casual' | 'business' | 'presentation'>('casual');
   const [scriptTheme, setScriptTheme] = useState('');
+  const [scriptTone, setScriptTone] = useState('standard');
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
 
@@ -31,6 +40,14 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
     const val = e.target.value;
     if (val === 'custom') {
       onSelectScenario(null);
+    } else if (val === 'freetalk') {
+      onSelectScenario({
+        id: 'freetalk',
+        title: 'フリートーク（台本なし）',
+        category: 'freetalk',
+        text: '',
+        description: '好きなテーマで自由に話してください。話した内容は自動で文字起こしされ、関東標準語としてのアクセントが評価されます。'
+      });
     } else {
       const scenario = PRESET_SCENARIOS.find(s => s.id === val) || null;
       onSelectScenario(scenario);
@@ -41,7 +58,7 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
     setGenerating(true);
     setGenError(null);
     try {
-      const script = await generatePracticeScript(scriptCategory, scriptTheme);
+      const script = await generatePracticeScript(scriptCategory, scriptTheme, scriptTone);
       onChangeCustomText(script.trim());
       onSelectScenario(null); // 自由入力モードに切り替え
     } catch (e: any) {
@@ -85,6 +102,7 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
               </option>
             ))}
             <option value="custom">✍️ 自由入力テキスト（プレゼン原稿など）</option>
+            <option value="freetalk">🎙 フリートーク（台本なしで自由に話す）</option>
           </select>
         </div>
 
@@ -101,45 +119,49 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
             }}>
               <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{currentScenario.title}</p>
               <p style={{ color: 'var(--text-muted)' }}>{currentScenario.description}</p>
-              <div style={{
-                marginTop: '0.75rem',
-                padding: '0.75rem',
-                background: 'rgba(0,0,0,0.1)',
-                borderRadius: '6px',
-                fontSize: '1.1rem',
-                fontWeight: 500,
-                letterSpacing: '0.03em',
-                color: 'var(--text-main)'
-              }}>
-                {currentScenario.text}
-              </div>
+              {currentScenario.category !== 'freetalk' && (
+                <div style={{
+                  marginTop: '0.75rem',
+                  padding: '0.75rem',
+                  background: 'rgba(0,0,0,0.1)',
+                  borderRadius: '6px',
+                  fontSize: '1.1rem',
+                  fontWeight: 500,
+                  letterSpacing: '0.03em',
+                  color: 'var(--text-main)'
+                }}>
+                  {currentScenario.text}
+                </div>
+              )}
             </div>
 
-            {/* Regenerate button for preset scenarios */}
-            <button
-              onClick={async () => {
-                setScriptCategory(currentScenario.category);
-                setGenerating(true);
-                setGenError(null);
-                try {
-                  const script = await generatePracticeScript(currentScenario.category, currentScenario.title);
-                  onChangeCustomText(script.trim());
-                  onSelectScenario(null);
-                } catch (e: any) {
-                  setGenError(e.message || '台本の生成に失敗しました。');
-                } finally {
-                  setGenerating(false);
+            {currentScenario.category !== 'freetalk' && (
+              <button
+                onClick={async () => {
+                  setScriptCategory(currentScenario.category as any);
+                  setScriptTone('standard');
+                  setGenerating(true);
+                  setGenError(null);
+                  try {
+                    const script = await generatePracticeScript(currentScenario.category as any, currentScenario.title, 'standard');
+                    onChangeCustomText(script.trim());
+                    onSelectScenario(null);
+                  } catch (e: any) {
+                    setGenError(e.message || '台本の生成に失敗しました。');
+                  } finally {
+                    setGenerating(false);
+                  }
+                }}
+                disabled={generating}
+                className="btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-start', fontSize: '0.9rem' }}
+              >
+                {generating
+                  ? <><Loader2 size={14} className="animate-spin" /> 生成中...</>
+                  : <><Wand2 size={14} /> このシチュエーションで別の台本を生成</>
                 }
-              }}
-              disabled={generating}
-              className="btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-start', fontSize: '0.9rem' }}
-            >
-              {generating
-                ? <><Loader2 size={14} className="animate-spin" /> 生成中...</>
-                : <><Wand2 size={14} /> このシチュエーションで別の台本を生成</>
-              }
-            </button>
+              </button>
+            )}
             {genError && <p style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{genError}</p>}
           </div>
         ) : (
@@ -186,25 +208,48 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
                 AIで台本を自動生成
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>シチュエーション</label>
-                <select
-                  value={scriptCategory}
-                  onChange={e => setScriptCategory(e.target.value as 'casual' | 'business' | 'presentation')}
-                  style={{
-                    padding: '0.5rem',
-                    borderRadius: 'var(--border-radius-sm)',
-                    border: '1px solid var(--border-card)',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                >
-                  {CATEGORY_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+              <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>シチュエーション</label>
+                  <select
+                    value={scriptCategory}
+                    onChange={e => setScriptCategory(e.target.value as 'casual' | 'business' | 'presentation')}
+                    style={{
+                      padding: '0.5rem',
+                      borderRadius: 'var(--border-radius-sm)',
+                      border: '1px solid var(--border-card)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-main)',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  >
+                    {CATEGORY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>口調・トーン</label>
+                  <select
+                    value={scriptTone}
+                    onChange={e => setScriptTone(e.target.value)}
+                    style={{
+                      padding: '0.5rem',
+                      borderRadius: 'var(--border-radius-sm)',
+                      border: '1px solid var(--border-card)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-main)',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  >
+                    {TONE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

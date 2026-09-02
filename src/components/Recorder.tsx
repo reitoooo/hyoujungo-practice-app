@@ -5,12 +5,16 @@ interface RecorderProps {
   onRecordingComplete: (blob: Blob | null) => void;
   userAudioUrl: string | null;
   setUserAudioUrl: (url: string | null) => void;
+  activeText: string;
+  isFreetalk: boolean;
 }
 
 export const Recorder: React.FC<RecorderProps> = ({
   onRecordingComplete,
   userAudioUrl,
-  setUserAudioUrl
+  setUserAudioUrl,
+  activeText,
+  isFreetalk
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -149,6 +153,17 @@ export const Recorder: React.FC<RecorderProps> = ({
         }}>
           <AlertCircle size={16} />
           {error}
+        </div>
+      )}
+
+      {/* Teleprompter Display */}
+      {(!userAudioUrl) && (
+        <div className={`teleprompter ${isFreetalk ? 'free-talk' : ''} ${isRecording ? 'recording' : ''}`}>
+          {isFreetalk ? (
+            '自由に話してください（話した内容は自動で文字起こしされます）'
+          ) : (
+            activeText || 'テキストが入力されていません'
+          )}
         </div>
       )}
 

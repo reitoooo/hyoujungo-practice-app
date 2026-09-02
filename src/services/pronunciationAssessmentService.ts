@@ -170,3 +170,48 @@ export async function assessPronunciation(
     Words: words
   };
 }
+
+/**
+ * 音声ファイルから文字起こし（Speech-to-Text）のみを実行する。
+ * フリートークモードで使用します。
+ */
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  if (!KEY) {
+    throw new Error('Azure Speech APIキーが設定されていません。.envファイルを確認してください。');
+  }
+
+  const wavBlob = await convertBlobToWav(audioBlob);
+  const url = `https://${REGION}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1?language=ja-JP`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Ocp-Apim-Subscription-Key': KEY,
+      'Accept': 'application/json',
+      'Content-Type': 'audio/wav; codecs=audio/pcm; samplerate=16000'
+    },
+    body: wavBlob
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Azure STT APIエラー: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.RecognitionStatus === 'InitialSilenceTimeout' || data.RecognitionStatus === 'BabbleTimeout') {
+    throw new Error('音声が検出されませんでした。マイクに近づいて十分な音量で発話してください。');
+  }
+
+  if (data.RecognitionStatus !== 'Success') {
+    throw new Error(`音声認識に失敗しました (${data.RecognitionStatus})`);
+  }
+
+  const text = data.DisplayText;
+  if (!text) {
+    throw new Error('文字起こし結果が見つかりませんでした。');
+  }
+
+  return text;
+}

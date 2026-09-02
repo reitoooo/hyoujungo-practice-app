@@ -1,7 +1,7 @@
 export interface PresetScenario {
   id: string;
   title: string;
-  category: 'casual' | 'business' | 'presentation';
+  category: 'casual' | 'business' | 'presentation' | 'freetalk';
   text: string;
   description: string;
 }

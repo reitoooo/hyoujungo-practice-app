@@ -7,7 +7,7 @@ import { Recorder } from './components/Recorder';
 import { PlaybackComparison } from './components/PlaybackComparison';
 import { ScoreDisplay } from './components/ScoreDisplay';
 import { AICoach } from './components/AICoach';
-import { assessPronunciation, AssessmentResult } from './services/pronunciationAssessmentService';
+import { assessPronunciation, AssessmentResult, transcribeAudio } from './services/pronunciationAssessmentService';
 import { generateAICoachingAdvice } from './services/aiCoachService';
 
 function App() {
@@ -76,7 +76,8 @@ function App() {
 
   // Perform pronunciation evaluation & AI coaching sequentially
   const handleAssessment = async () => {
-    if (!userAudioBlob || !activeText.trim()) return;
+    if (!userAudioBlob) return;
+    if (activeCategory !== 'freetalk' && !activeText.trim()) return;
 
     setAssessmentLoading(true);
     setAiLoading(true);
@@ -85,14 +86,24 @@ function App() {
     setError(null);
 
     try {
-      // 1. Run Azure Pronunciation Assessment
-      const result = await assessPronunciation(userAudioBlob, activeText);
+      let evalText = activeText;
+      let evalTitle = activeTitle;
+
+      // 1. For Free Talk, transcribe first
+      if (activeCategory === 'freetalk') {
+        evalText = await transcribeAudio(userAudioBlob);
+        setCustomText(evalText); // Show the transcribed text to the user
+        evalTitle = 'フリートークの書き起こし';
+      }
+
+      // 2. Run Azure Pronunciation Assessment
+      const result = await assessPronunciation(userAudioBlob, evalText);
       setAssessmentResult(result);
       setAssessmentLoading(false);
 
-      // 2. Run LLM AI coaching using assessment JSON
+      // 3. Run LLM AI coaching using assessment JSON
       try {
-        const advice = await generateAICoachingAdvice(activeText, activeTitle, activeCategory, result);
+        const advice = await generateAICoachingAdvice(evalText, evalTitle, activeCategory, result);
         setAiAdvice(advice);
       } catch (err: any) {
         console.error(err);
@@ -178,7 +189,7 @@ function App() {
       )}
 
       {/* Steps Layout Flow */}
-      <main>
+      <main className="main-content-wrapper">
         {/* Step 1: Scenario Settings */}
         <ScenarioSelector
           currentScenario={currentScenario}
@@ -188,40 +199,58 @@ function App() {
         />
 
         {/* Step 2: Generating and Playing reference speech */}
-        <ExampleAudioPlayer
-          key={currentScenario ? currentScenario.id : 'custom-' + activeText.length}
-          text={activeText}
-          category={activeCategory}
-          onAudioReady={setExampleAudioUrl}
-        />
+        {activeCategory !== 'freetalk' && (
+          <ExampleAudioPlayer
+            key={currentScenario ? currentScenario.id : 'custom-' + activeText.length}
+            text={activeText}
+            category={activeCategory}
+            onAudioReady={setExampleAudioUrl}
+          />
+        )}
 
-        {/* Step 3: Voice recording */}
-        <Recorder
-          onRecordingComplete={handleRecordingComplete}
-          userAudioUrl={userAudioUrl}
-          setUserAudioUrl={setUserAudioUrl}
-        />
+        {/* Step 4 & 5 & 6: Playback, Score, AI */}
+        {userAudioUrl && (
+          <>
+            <PlaybackComparison
+              exampleAudioUrl={exampleAudioUrl}
+              userAudioUrl={userAudioUrl}
+            />
 
-        {/* Step 4: Comparison Playback (Enabled only when both files exist) */}
-        <PlaybackComparison
-          exampleAudioUrl={exampleAudioUrl}
-          userAudioUrl={userAudioUrl}
-        />
+            {(assessmentResult || assessmentLoading) && (
+              <ScoreDisplay
+                result={assessmentResult}
+                loading={assessmentLoading}
+                onAssess={handleAssessment}
+                canAssess={!!userAudioBlob && !assessmentLoading}
+                userAudioUrl={userAudioUrl}
+              />
+            )}
 
-        {/* Step 5: Scoring results display */}
-        <ScoreDisplay
-          result={assessmentResult}
-          loading={assessmentLoading}
-          onAssess={handleAssessment}
-          canAssess={!!userAudioBlob && !assessmentLoading}
-          userAudioUrl={userAudioUrl}
-        />
+            <AICoach
+              advice={aiAdvice}
+              loading={aiLoading}
+            />
+          </>
+        )}
 
-        {/* Step 6: AI Coaching Feedback */}
-        <AICoach
-          advice={aiAdvice}
-          loading={aiLoading}
-        />
+        {/* Sticky Recorder Section */}
+        <div className="sticky-recorder-container">
+          <Recorder
+            onRecordingComplete={handleRecordingComplete}
+            userAudioUrl={userAudioUrl}
+            setUserAudioUrl={setUserAudioUrl}
+            activeText={activeText}
+            isFreetalk={activeCategory === 'freetalk'}
+          />
+          
+          {userAudioUrl && !assessmentResult && !assessmentLoading && (
+            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+               <button onClick={handleAssessment} className="btn-primary" style={{ width: '100%', maxWidth: '300px' }}>
+                 発音を評価する
+               </button>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

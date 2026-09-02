@@ -24,11 +24,13 @@ export async function generateAICoachingAdvice(
   const prompt = `
 あなたはNHKアナウンサー研修や声優養成所でも指導を行う、極めてプロフェッショナルで耳の肥えた「標準語（東京・関東共通語アクセント）」および「スピーキング・発声」の指導員です。
 
-ユーザーは以下のシチュエーションとお題で練習を行いました。
-甘い評価やお世辞は不要です。標準語話者として自然に聞こえるか、シチュエーションに合ったトーン・速度・ポーズ（間）ができているかを厳格・プロフェッショナルな視点で厳しく審査してください。
+${category === 'freetalk' 
+  ? 'ユーザーは「フリートーク（台本なし）」で自発的に以下の内容を話しました。これが自然な関東標準語として聞こえるか、会話としての間やアクセントが適切かを評価してください。'
+  : 'ユーザーは以下のシチュエーションとお題で練習を行いました。甘い評価やお世辞は不要です。標準語話者として自然に聞こえるか、シチュエーションに合ったトーン・速度・ポーズ（間）ができているかを厳格・プロフェッショナルな視点で厳しく審査してください。'
+}
 
-【シチュエーション】 ${situationTitle} (${category})
-【課題テキスト】 「${text}」
+【シチュエーション】 ${situationTitle}
+【話したテキスト】 「${text}」
 
 【Azure 音声解析スコア】
 - 総合評価 (Pronunciation Score): ${result.PronunciationScore} / 100
@@ -68,7 +70,8 @@ ${wordDetails}
  */
 export async function generatePracticeScript(
   category: 'casual' | 'business' | 'presentation',
-  theme: string
+  theme: string,
+  tone: string = 'standard'
 ): Promise<string> {
   const categoryLabel = {
     casual: '日常会話（カジュアル）',
@@ -76,12 +79,22 @@ export async function generatePracticeScript(
     presentation: 'プレゼンテーション・スピーチ'
   }[category];
 
+  const toneMap: Record<string, string> = {
+    standard: '標準的なトーン',
+    polite: '丁寧語・敬語',
+    apology: '謝罪・クレーム対応（感情を込める）',
+    persuasive: '説得・提案（抑揚をつける）',
+    friendly: '親しい友人へのタメ口（くだけた表現）'
+  };
+  const toneLabel = toneMap[tone] || '標準的なトーン';
+
   const prompt = `
 あなたは「標準語（関東イントネーション）」の発音練習コンテンツを作成する専門家です。
 以下の条件に従って、日本語のスピーキング練習用の台本を1つ作成してください。
 
 【シチュエーション】 ${categoryLabel}
 【テーマ・場面のヒント】 ${theme || '指定なし（任意のシーンでOK）'}
+【口調・トーン】 ${toneLabel}
 
 【台本の条件】
 - 文字数: 80〜150文字程度（2〜3文で構成し、自然な流れを持たせること）
