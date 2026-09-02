@@ -208,8 +208,8 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
                 AIで台本を自動生成
               </p>
 
-              <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+              <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: '1 1 140px' }}>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>シチュエーション</label>
                   <select
                     value={scriptCategory}
@@ -230,7 +230,7 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: '1 1 140px' }}>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>口調・トーン</label>
                   <select
                     value={scriptTone}
